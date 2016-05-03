@@ -49,6 +49,7 @@ param1.y = G*beta + e1 / sqrt(lambda);
 
 post1 = eval_posterior(param1); 
 
+chain = do_simple_mcmc(param1);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Uncorrelated error 

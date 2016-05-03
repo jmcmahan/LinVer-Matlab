@@ -1,4 +1,4 @@
-function chain = do_simple_mcmc(param, Nchain)
+function qchain = do_simple_mcmc(param, Nchain)
 % chain = do_simple_mcmc(param) - Use a Metropolis-Hastings algorithm to generate
 % a 10,000 iterate chain drawn from the posterior of the problem defined by param.
 % 
@@ -7,6 +7,72 @@ function chain = do_simple_mcmc(param, Nchain)
 %
 % NOTE: This does not use any of the unknown parameters in anyway. 
 
+if nargin < 2
+    Nchain = 1e4; 
+end
+
+Nbeta = param.Nbeta;
+y = param.y;
+G = param.G;
+
+if strcmp(param.unknowns, 'beta')
+    calcase = 1;
+    Np = Nbeta;
+    ll = @(q) log_likelihood(param, q);
+elseif strcmp(param.unknowns, 'beta_lambda')
+    calcase = 2;
+    Np = Nbeta + 1;
+    ll = @(q) log_likelihood(param, q(1:Nbeta), q(Nbeta+1));
+elseif strcmp(param.unknowns, 'beta_lambda_phi')
+    calcase = 3;
+    Np = Nbeta + 2;
+    ll = @(q) log_likelihood(param, q(1:Nbeta), q(Nbeta+1), q(Nbeta+2));
+end
+
+qchain = zeros(Nchain, Np);
+% For now, initialize to the true values. This isn't as unfair as it 
+% sounds since we're looking at distributions, not the single guess, 
+% and this wouldn't guarantee the distribution is correct. 
+
+qchain(1, 1:Nbeta) = param.beta;
+if calcase > 1
+    qchain(1, Nbeta+1) = param.lambda;
+end
+if calcase > 3
+    qchain(1, Nbeta+2) = param.phi;
+end
+
+res = y - G*param.beta;
+s2ols = res'*res / (param.N - Np);
+Ri = eval_corrfuncinv(param);
+V = s2ols*param.lambda*inv(G'*Ri*G);
+L = chol(V)';
+
+
+accrej = zeros(Nchain, 1);
+for k = 2:Nchain
+    if ~mod(k, fix(Nchain/100))
+        disp(sprintf('Percent complete: %d%%', round(100*k/Nchain)))
+    end
+
+    qp = qchain(k-1, :)';
+    qstar = qp + L*randn(Np, 1);
+    % Add something to ensure samples are in-bounds here
+
+    r = exp(ll(qstar) - ll(qp));
+    if r >= 1
+        qchain(k,:) = qstar';
+        accrej(k) = 1; 
+    else
+        flip = rand;
+        if flip < r
+            qchain(k,:) = qstar';
+            accrej(k) = 1;
+        else
+            qchain(k,:) = qp';
+        end
+    end
+end
 
 
 
