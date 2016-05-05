@@ -1,4 +1,4 @@
-function [reject, pval, estat, B] = energy_dist_test(s1, s2, alpha, B)
+function [reject, pval, estat, B] = energy_dist_test_dmat(s1, s2, alpha, B)
 % Do the two-sample energy statistic test for equality of distributions.
 % s1 = d-by-N1 set of N1 samples of d-dimensional variables
 % s2 = d-by-N2 set of N2 samples of d-dimensional variables
@@ -35,20 +35,32 @@ end
 [d, n1] = size(s1);
 [d, n2] = size(s2);
 
+dmat = dist_matrix(s1, s2);
+
 N = n1+n2;
 
 pool = [s1, s2];
 
 estat = zeros(B+1, 1);
-eobs = EnSt2(s1, s2);
+%eobs = EnSt2(s1, s2);
+id1 = 1:n1;
+id2 = (n1+1):(n1+n2);
+eobs = EnSt2DistMat(id1, id2, dmat);
 estat(1) = eobs;
 
 for j = 2:B+1
+
     %idx = randsample(N, N);
     idx = randperm(N);
-    x = pool(:, idx(1:n1));
-    y = pool(:, idx(n1+1:end));
-    estat(j) = EnSt2(x, y);
+    %x = pool(:, idx(1:n1));
+    %y = pool(:, idx(n1+1:end));
+    %estat(j) = EnSt2(x, y);
+    
+    % The distance-matrix-based version used the permuted indices of the pooled
+    % sample, not the samples themselves. 
+    x = idx(1:n1);
+    y = idx(n1+1:end);
+    estat(j) = EnSt2DistMat(x, y, dmat);
 end
 
 pval = sum(eobs < estat) / (B+1);

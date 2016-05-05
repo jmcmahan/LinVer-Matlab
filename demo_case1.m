@@ -4,6 +4,7 @@ Nbeta = 2;              % Number of regression parameters
 % True parameters. These are used to generate data and that
 % data is used to infer these parameters. 
 beta = randn(Nbeta, 1)*10;
+%lambda = 2 + rand*5;
 lambda = 100 + rand*200;
 phi = 0.5;
 
@@ -47,9 +48,13 @@ param1.y = G*beta + e1 / sqrt(lambda);
 % Non-informative prior
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+disp('***********************************************')
+disp('Beta unknown, uncorrelated noise, uniform prior')
+disp('***********************************************')
 post1 = eval_posterior(param1); 
-
-chain = do_simple_mcmc(param1);
+[chain1, acrj1] = do_simple_mcmc(param1, post1);
+disp('Done.')
+disp(' ')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Uncorrelated error 

@@ -1,13 +1,16 @@
-function qchain = do_simple_mcmc(param, Nchain)
+function [qchain, accrej] = do_simple_mcmc(param, post, Nchain)
 % chain = do_simple_mcmc(param) - Use a Metropolis-Hastings algorithm to generate
 % a 10,000 iterate chain drawn from the posterior of the problem defined by param.
 % 
-% chain = do_simple_mcmc(param, Nchain) - Same as above, but generate Nchain 
+% chain = do_simple_mcmc(param, post) - Same as above but use the posterior 
+% estimates to initialize the proposal matrix.
+%
+% chain = do_simple_mcmc(param, post, Nchain) - Same as above, but generate Nchain 
 % samples.
 %
 % NOTE: This does not use any of the unknown parameters in anyway. 
 
-if nargin < 2
+if nargin < 3
     Nchain = 1e4; 
 end
 
@@ -42,10 +45,11 @@ if calcase > 3
     qchain(1, Nbeta+2) = param.phi;
 end
 
-res = y - G*param.beta;
+res = y - G*post.mu2;
 s2ols = res'*res / (param.N - Np);
 Ri = eval_corrfuncinv(param);
-V = s2ols*param.lambda*inv(G'*Ri*G);
+%V = s2ols*param.lambda*inv(G'*Ri*G);
+V = s2ols*inv(G'*Ri*G);
 L = chol(V)';
 
 
