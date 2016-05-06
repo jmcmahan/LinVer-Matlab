@@ -30,7 +30,7 @@ end
 
 function post = do_beta_lambda(param)
     phi = param.phi;
-    [post.a1, post.b1, post.dof, post.loc, post.scl] = ...
+    [post.a1, post.b1, post.dof, post.loc, post.scl, post.sigma2] = ...
                 eval_beta_lambda_params(param, phi); 
 end
 
@@ -60,7 +60,7 @@ function [sigma2, mu2] = eval_beta_params(param, phi)
 end
 
 
-function [a1, b1, dof, loc, scl, sigma3] = eval_beta_lambda_params(param, phi)
+function [a1, b1, dof, loc, scl, sigma2, sigma3] = eval_beta_lambda_params(param, phi)
     % Find the posterior distribution parameters when calibrating beta and 
     % lambda.
     % 

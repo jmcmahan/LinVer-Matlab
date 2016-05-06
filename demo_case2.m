@@ -48,7 +48,13 @@ param1.y = G*beta + e1 / sqrt(lambda);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 post1 = eval_posterior(param1); 
-
+disp('******************************************************')
+disp('Beta,lambda unknown, uncorrelated noise, uniform prior')
+disp('******************************************************')
+post1 = eval_posterior(param1);
+result1 = do_energy_test(param1, post1);
+disp('Done.')
+disp(' ')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Uncorrelated error 

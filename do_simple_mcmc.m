@@ -1,11 +1,12 @@
-function [qchain, accrej] = do_simple_mcmc(param, post, Nchain)
-% chain = do_simple_mcmc(param) - Use a Metropolis-Hastings algorithm to generate
-% a 10,000 iterate chain drawn from the posterior of the problem defined by param.
+function [qchain, aratio] = do_simple_mcmc(param, post, Nchain)
+% [chain, aratio] = do_simple_mcmc(param) - Use a Metropolis-Hastings algorithm to generate
+% a 10,000 iterate chain drawn from the posterior of the problem defined by param. 
+% Acceptance ratio returned as aratio.
 % 
-% chain = do_simple_mcmc(param, post) - Same as above but use the posterior 
+% [chain, aratio] = do_simple_mcmc(param, post) - Same as above but use the posterior 
 % estimates to initialize the proposal matrix.
 %
-% chain = do_simple_mcmc(param, post, Nchain) - Same as above, but generate Nchain 
+% [chain, aratio] = do_simple_mcmc(param, post, Nchain) - Same as above, but generate Nchain 
 % samples.
 %
 % NOTE: This does not use any of the unknown parameters in anyway. 
@@ -45,16 +46,28 @@ if calcase > 3
     qchain(1, Nbeta+2) = param.phi;
 end
 
-res = y - G*post.mu2;
+%res = y - G*post.mu2;
+res = y - G*param.beta;
 s2ols = res'*res / (param.N - Np);
 Ri = eval_corrfuncinv(param);
 %V = s2ols*param.lambda*inv(G'*Ri*G);
-V = s2ols*inv(G'*Ri*G);
+V = zeros(Np);
+V(1:param.Nbeta, 1:param.Nbeta) = s2ols*inv(G'*Ri*G);
+if calcase > 1
+    % For now, just put something reasonable for the range of the hyper
+    % parameters we're using in testing. 
+    V(param.Nbeta+1, param.Nbeta+1) = 10;
+end
+if calcase > 2
+    V(end, end) = 0.1; 
+end
+
 L = chol(V)';
 
+acceptnum = 1;
 
-accrej = zeros(Nchain, 1);
 for k = 2:Nchain
+    accept = false;
     if ~mod(k, fix(Nchain/100))
         disp(sprintf('Percent complete: %d%%', round(100*k/Nchain)))
     end
@@ -66,19 +79,23 @@ for k = 2:Nchain
     r = exp(ll(qstar) - ll(qp));
     if r >= 1
         qchain(k,:) = qstar';
-        accrej(k) = 1; 
+        accept = true;
     else
         flip = rand;
         if flip < r
             qchain(k,:) = qstar';
-            accrej(k) = 1;
+            accept = true;
         else
             qchain(k,:) = qp';
         end
     end
+    if accept
+        acceptnum  = acceptnum + 1;
+    end
 end
 
 
+aratio = acceptnum/Nchain;
 
 end
 
