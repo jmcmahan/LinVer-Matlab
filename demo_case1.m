@@ -28,6 +28,7 @@ param1.prior = prior_noninformative;
 param1.beta = beta;
 param1.lambda = lambda;
 param1.phi = phi;
+param1.betarange = [-100*ones(Nbeta, 1), 100*ones(Nbeta, 1)];
 
 % Correlation type
 param1.corrfunc = 'none';

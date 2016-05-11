@@ -1,5 +1,5 @@
-function d = eval_det(phi, param)
-% d = eval_det(param) - Evaluate the determinant for the correlation function 
+function d = eval_det(param, phi)
+% d = eval_det(param, phi) - Evaluate the determinant for the correlation function 
 % specified by % param at the correlation parameters given by the vector phi
 % phi - vector of values at which to evaluate the determinant
 % param - parameter structure containing a field "corrfunc". This can be one of

@@ -1,3 +1,107 @@
+function [t, w] = gauss_quadrature(measure, order, mparam)
+% [t, w] = gauss_quadrature(measure, order) - Compute the Gaussian
+% quadrature nodes and weights for a selected integration order and
+% measure for integration. For the uniform and beta measures, 
+% integration is over [-1, 1], for the gaussian measure, it is 
+% -infty, infty. 
+%
+% measure = 'uniform', 'beta', 'gaussian', 'gamma', a string selecting 
+% which  probability measure the integral is weighted by. 
+%
+% order = order of the integration (number of nodes)
+%
+% mparam = supplemental parameters for the measures. Use for the
+% following measures:
+% beta (note this is the (1-x)^alpha * (1+x)^beta notation)
+% **********************************************************
+% mparam.alpha = alpha parameter
+% mparam.beta = beta parameter
+% 
+% gamma (this is the x^(alpha-1)*exp(-x/beta) version)
+% **********************************************************
+% mparam.alpha = alpha parameter
+% mparam.beta = beta parameter
+%
+% Returns:
+% t - nodes to evalate the integrand on
+% w - weights for the quadrature rule
+
+N = order; 
+
+if strcmp(measure, 'gaussian')
+    % Recurrence relation for the Hermite polynomials
+    a = ones(N, 1);
+    b = zeros(N, 1);
+    c = (0:(N-1))';
+elseif strcmp(measure, 'uniform')
+    % Recurrence relation for the Legendre polynomials
+    n = N-1; 
+    a = (2*(0:n) +1)'./((0:n)+1)';
+    b = zeros(N,1);
+    c = (0:n)'./((0:n)+1)';
+elseif strcmp(measure, 'beta')
+    % Recurrence relation for the Jacobi polynomials
+    if nargin < 3
+        al = 1; bt = 1; 
+    else
+        al = mparam.alpha;
+        bt = mparam.beta;
+    end
+
+    n = (0:(N-1)); 
+    a = 0.5 * (2*n+al+bt+1) .* (2*n+al+bt+2) ...
+        ./ ((n+1) .* (n+al+bt+1));
+    b = 0.5 * (al^2-bt^2) .* (2*n+al+bt+1) ...
+        ./ ((n+1) .* (n+al+bt+1) .* (2*n+al+bt));
+    c =       (n+al).*(n+bt).*(2*n+al+bt+2) ...
+        ./ ((n+1) .* (n+al+bt+1) .* (2*n+al+bt));
+
+    % Correction to first term
+    a(1) = 0.5 * (al + bt + 2);
+    b(1) = 0.5 * (al - bt); 
+elseif strcmp(measure, 'gamma')
+    % Recurrence relation for the Laguerre polynomials
+    if nargin < 3
+        al = 2; bt = 1;
+    else
+        al = mparam.alpha;
+        bt = mparam.beta;
+    end
+    n = (0:(N-1));
+    a = -1./(n+1);
+    b = (2*n + al)./(n+1);
+    c = n./(al -1 + n);
+end
+
+
+T = -diag(b./a) + diag(1./a(1:N-1), 1) + diag(c(2:N)./a(2:N),-1);
+
+
+if sum(sum(T ~= T'))
+    alpha = -b ./ a;
+    beta = sqrt(c(2:end)./(a(1:(N-1)).*a(2:end)));
+    T = diag(alpha) + diag(beta, 1) + diag(beta, -1); 
+end
+
+[V, t] = eig(T); 
+
+% Nodes / abscissa
+t = diag(t);
+% Weights
+w = ((V(1,:)).^2)';
+
+
+if strcmp(measure, 'gamma')
+    % Scale the nodes in this special case
+    t = bt*t; 
+end
+
+end
+
+
+function scratch()
+% This function should be deleted later. It's just for holding the
+% reference code
 
 % I'll add a list of some of the polynomials to use for 
 % checking results
@@ -53,20 +157,6 @@ a(1) = 0.5 * (al + bt + 2);
 b(1) = 0.5 * (al - bt); 
 
 
-T = -diag(b./a) + diag(1./a(1:N-1), 1) + diag(c(2:N)./a(2:N),-1);
-
-
-if sum(sum(T ~= T'))
-    alpha = -b ./ a;
-    beta = sqrt(c(2:end)./(a(1:(N-1)).*a(2:end)));
-    T = diag(alpha) + diag(beta, 1) + diag(beta, -1); 
-end
-
-[V, t] = eig(T); 
-
-% Nodes / abscissa
-t = diag(t);
-% Weights
-w = ((V(1,:)).^2)';
  
 
+end

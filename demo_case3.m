@@ -1,4 +1,4 @@
-N = 300;                % Number of data points
+N = 100;                % Number of data points
 Nbeta = 1;              % Number of regression parameters
 
 % True parameters. These are used to generate data and that
@@ -27,6 +27,8 @@ param1.prior = prior_noninformative;
 param1.beta = beta;
 param1.lambda = lambda;
 param1.phi = phi;
+param1.betarange = [-100*ones(Nbeta,1) 100*ones(Nbeta,1)];
+param1.lambdarange = [50, 500];
 
 % Correlation type
 param1.corrfunc = 'none';
@@ -47,7 +49,7 @@ param1.y = G*beta + e1 / sqrt(lambda);
 % Non-informative prior
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-post1 = eval_posterior(param1); 
+%post1 = eval_posterior(param1); 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -60,7 +62,7 @@ param2 = param1;
 % ... but change to Gaussian prior
 param2.prior = prior_gaussian;
 
-post2 = eval_posterior(param2);
+%post2 = eval_posterior(param2);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Equi-correlated error 
@@ -68,6 +70,9 @@ post2 = eval_posterior(param2);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 param3 = param1;
 param3.corrfunc = 'equal';
+% Equi-correlated noise has parameter domain
+% [0, 1)
+param3.phirange = [0, 0.95];
 e3 = eval_noise(param3);
 param3.y = G*beta + e3 / sqrt(lambda);
 
@@ -88,6 +93,9 @@ post4 = eval_posterior(param4);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 param5 = param1;
 param5.corrfunc = 'ar';
+% AR(1)-correlated noise has parameter domain
+% (-1, 1)
+param5.phirange = [-0.95, 0.95];
 e5 = eval_noise(param5);
 param5.y = G*beta + e5 / sqrt(lambda);
 

@@ -13,6 +13,7 @@ if N < 5e2;
 else
     % Placeholder for a more efficient version 
     disp('N is larger than allowed by default, not attempting.')
+    disp('Can change me in "eval_noise.m".');
     return
 end
 
