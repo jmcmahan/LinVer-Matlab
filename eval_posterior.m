@@ -38,8 +38,9 @@ end
 
 
 function post = do_beta_lambda_phi(param)
-    [post.pbeta, post.plambda, post.pphi, post.xphi, post.c] ...
-        = eval_beta_lambda_phi_params(param);
+    [post.pbeta, post.plambda, post.pphi, post.xphi, post.c, ...
+        post.phiparam]  ...
+          = eval_beta_lambda_phi_params(param);
 end
 
 
@@ -120,20 +121,22 @@ function [a1, b1, dof, loc, scl, sigma2, sigma3, GRiG] = eval_beta_lambda_params
 end
 
 
-function [pbeta, plambda, pphi, xphi, c] = eval_beta_lambda_phi_params(param)
+function [pbeta, plambda, pphi, xphi, c, phiparam] = eval_beta_lambda_phi_params(param)
 % Find the posterior distribution parameters when calibrating beta, lambda, and
 % phi. 
 %
 % pbeta - Function to evaluate marginal beta posterior at beta. So do pbeta(beta)
-% to get the probability at beta. 
+%         to get the probability at beta. 
 %
 % plambda - Same as above but for lambda.
 %
 % pphi, xphi - Unlike the above, this is not a function, but a set of nodes
-% and the values at those nodes. 
+%              and the values at those nodes. 
 %
 % c - Integration constant for normalizing the phi posterior. 
 % 
+% phiparam - structure containing evaluation of the parameters for the lambda and 
+%            phi posteriors at the points xphi
 
     global debug;
 
@@ -186,7 +189,7 @@ function [pbeta, plambda, pphi, xphi, c] = eval_beta_lambda_phi_params(param)
 
     % This is all used to build the functions for evaluating the marginal beta and lambda
     phiparam.quadorder = quadorder;
-    phiparam.pphi = pphi;
+    phiparam.pphi = pphi; 
     phiparam.xphi = xphi;
     phiparam.wphi = wphi;
     phiparam.Nbeta = Nbeta;
@@ -208,7 +211,6 @@ function [pbeta, plambda, pphi, xphi, c] = eval_beta_lambda_phi_params(param)
 
     pbeta = @(beta) beta_marginal(phiparam, beta); 
     plambda = @(lambda) lambda_marginal(phiparam, lambda);
-
 
 
     debug.wphi = wphi;
@@ -276,18 +278,14 @@ function p = beta_marginal(phiparam, beta)
         if ~isrow(beta)
             beta = beta';
         end
-        ignd = zeros(quadorder, Ns);
-        for j = 1:Ns
-            betac = beta(j); 
 
-            ignd(:, j) = pphi.*tpdf( (betac - loc)./sqrt(scl), dof(1)) ./ sqrt(scl);
-            %ignd = zeros(quadorder, 1); 
-            %for k = 1:quadorder
-            %    ignd(k) = pphi(k)*tpdf((betac - loc(k))/sqrt(scl(k)), dof(k)) / sqrt(scl(k));
-            %end
-            %p(j) = wphi'*ignd;
+        ignd = zeros(quadorder, Ns);
+        % Can vectorize this, as well, if a speed-up is needed at some point
+        for j = 1:quadorder
+            ignd(j,:) = tpdf( (beta - loc(j)) / sqrt(scl(j)), dof(j)) ...
+                                / sqrt(scl(j));
         end
-        p = wphi'*ignd;
+        p = (wphi.*pphi)'*ignd;
     else
         disp('Case 3 currently only supports 1 regression parameter');
         return;
@@ -296,7 +294,7 @@ function p = beta_marginal(phiparam, beta)
 end
 
 
-function p = lambda_marginal(phiparam, lambda)
+function [p, ignd] = lambda_marginal(phiparam, lambda)
 % This is the marginal posterior for lambda when phi is unknown. This evaluates
 % the probability at lambda given info in phiparam. The parameter beta should be
 % size M by 1 where M is the number of points to evaluate p(lambda) at.
@@ -315,15 +313,13 @@ function p = lambda_marginal(phiparam, lambda)
     if ~isrow(lambda)
         lambda = lambda';
     end
-    % NOT CURRENTLY WORKING WHEN lambda IS A VECTOR - FIX. 
-    for j = 1:Ns
-        lambdac = lambda(j); 
-        ignd = zeros(quadorder, Ns); 
-        % Note Matlab uses a different notation for the gamma distribution
-        % so this converts as appropriate. 
-        ignd(:, j) = pphi .* gampdf(lambdac, a1, 1 ./ b1);
+
+    ignd = zeros(quadorder, Ns); 
+    for j = 1:quadorder;
+        ignd(j, :) = gampdf(lambda, a1(j), 1 / b1(j));
     end
-    p = wphi'*ignd;
+
+    p = (wphi.*pphi)'*ignd;
     
 end
 
