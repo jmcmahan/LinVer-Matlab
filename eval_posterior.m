@@ -26,14 +26,14 @@ end
 
 function post = do_beta(param)
     phi = param.phi;
-    [post.sigma2, post.mu2] = eval_beta_params(param, phi);
+    [post.sigma2, post.mu2, post.pbeta] = eval_beta_params(param, phi);
 end
 
 
 function post = do_beta_lambda(param)
     phi = param.phi;
-    [post.a1, post.b1, post.dof, post.loc, post.scl, post.sigma2] = ...
-                eval_beta_lambda_params(param, phi); 
+    [post.a1, post.b1, post.dof, post.loc, post.scl, post.sigma2, ~, ~, ...
+     post.pbeta, post.plambda] = eval_beta_lambda_params(param, phi); 
 end
 
 
@@ -44,7 +44,7 @@ function post = do_beta_lambda_phi(param)
 end
 
 
-function [sigma2, mu2] = eval_beta_params(param, phi)
+function [sigma2, mu2, pbeta] = eval_beta_params(param, phi)
     % Find the posterior distribution parameters when calibrating beta.
     %
     % sigma2 = unscaled posterior covariance matrix of beta
@@ -62,10 +62,14 @@ function [sigma2, mu2] = eval_beta_params(param, phi)
         sigma2 = inv(inv(sigma0) + G'*Ri*G);
         mu2 = sigma2 * (G'*Ri*y + sigma0\mu0);
     end
+
+    % beta should be M by Nbeta where M is the number of observations
+    pbeta = @(beta) mvnpdf( beta, mu2', sigma2 / param.lambda);
 end
 
 
-function [a1, b1, dof, loc, scl, sigma2, sigma3, GRiG] = eval_beta_lambda_params(param, phi)
+function [a1, b1, dof, loc, scl, sigma2, sigma3, GRiG, pbeta, plambda] ...
+            = eval_beta_lambda_params(param, phi)
 % Find the posterior distribution parameters when calibrating beta and 
 % lambda.
 % 
@@ -118,6 +122,13 @@ function [a1, b1, dof, loc, scl, sigma2, sigma3, GRiG] = eval_beta_lambda_params
     loc = mu2;
     scl = b1*sigma2/a1;
 
+    L = chol(b1*sigma2/a1)';
+    % Matlab doesn't use the scale / location parameterization that we use, so 
+    % it must be put in manually. Here "beta" should be a M by Nbeta vector
+    % whose rows give values of beta to evaluate at.
+    pbeta = @(beta) mvtpdf( (L\(beta'-repmat(mu2,1,size(beta,1))))', ...
+                            eye(Nbeta), 2*a1) / det(L);
+    plambda = @(lambda) gampdf(lambda, a1, 1 / b1);
 end
 
 
@@ -183,7 +194,7 @@ function [pbeta, plambda, pphi, xphi, c, phiparam] = eval_beta_lambda_phi_params
     disp('Computing phi...')
     measure.alpha = param.N;
     measure.beta = param.N;
-    [pphi, a1, b1, dof, scl, loc] = phi_integrand(param, xphi, measure);
+    [pphi, a1, b1, dof, scl, loc, pb] = phi_integrand(param, xphi, measure);
     c = wphi'*pphi;
     pphi = pphi / c; 
 
@@ -195,6 +206,7 @@ function [pbeta, plambda, pphi, xphi, c, phiparam] = eval_beta_lambda_phi_params
     phiparam.Nbeta = Nbeta;
     phiparam.a1 = a1; phiparam.b1 = b1;
     phiparam.dof = dof; phiparam.scl = scl; phiparam.loc = loc; 
+    phiparam.pbeta = pb;
 
     if strcmp(phitype, 'uniform')
         % The prior term of the phi posterior is separated into the quadrature weights (wphi)
@@ -217,7 +229,7 @@ function [pbeta, plambda, pphi, xphi, c, phiparam] = eval_beta_lambda_phi_params
 end
 
 
-function [f, a1, b1, dof, scl, loc] = phi_integrand(param, phi)
+function [f, a1, b1, dof, scl, loc, pbeta] = phi_integrand(param, phi)
 % f = phi_integrand(param, post, phi) : Evaluate part of the integrand involved
 % in the calculation of the posterior of phi. The problem is defined
 % in param and phi is a vector of values at which to evaluate the
@@ -235,12 +247,13 @@ b1 = zeros(size(phi));
 dof = zeros(size(phi));
 scl = zeros(length(phi), Nbeta, Nbeta);
 loc = zeros(length(phi), Nbeta);
+pbeta = cell(length(phi), 1);
 
 % This computation can be done outside of the loop, for whatever good that does
 detR = eval_det(param, phi);
 for j = 1:M
     phic = phi(j); 
-    [a1j, b1j, dofj, locj, sclj, ~, sigma3, GRiG] = eval_beta_lambda_params(param, phic);
+    [a1j, b1j, dofj, locj, sclj, ~, sigma3, GRiG, pbetaj] = eval_beta_lambda_params(param, phic);
 
     detRc = detR(j); 
     % NOTE - the code as-is returns sigma3 = [] in the non-informative case. 
@@ -248,6 +261,7 @@ for j = 1:M
     dets3 = det(sigma3);
     detGRiG = det(GRiG);
 
+    pbeta{j} = pbetaj;
     f(j) = 1 / (b1j^a1j * sqrt(detRc) * sqrt(detGRiG) * sqrt(dets3));
 
     a1(j) = a1j; b1(j) = b1j; 
@@ -271,7 +285,7 @@ function p = beta_marginal(phiparam, beta)
     Nbeta = phiparam.Nbeta;
     a1 = phiparam.a1; b1 = phiparam.b1;
     dof = phiparam.dof; scl = phiparam.scl; loc = phiparam.loc; 
-
+    pbeta = phiparam.pbeta;
 
     if Nbeta == 1
         Ns = length(beta);
@@ -287,8 +301,15 @@ function p = beta_marginal(phiparam, beta)
         end
         p = (wphi.*pphi)'*ignd;
     else
-        disp('Case 3 currently only supports 1 regression parameter');
-        return;
+        % THIS IS AS-OF-YET UNTESTED - CHECK IT
+        Ns = size(beta, 1);
+
+        ignd = zeros(quadorder, Ns);
+        for j = 1:quadorder
+            ignd(j,:) = pbeta{j}(beta);
+        end
+        p = (wphi.*pphi)'*ignd;
+        %disp('Case 3 currently only supports 1 regression parameter');
     end
     
 end
