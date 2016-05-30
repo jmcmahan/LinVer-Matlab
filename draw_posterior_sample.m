@@ -17,6 +17,21 @@ elseif strcmp(param.unknowns, 'beta_lambda')
         sample(j, end) = l;
     end
 elseif strcmp(param.unknowns, 'beta_lambda_phi')
+    sample = zeros(M, param.Nbeta+2);
+    phi = phirnd(post, param, M);
+    % Reuse the code for evaluating the lambda / beta parameters with the
+    % samples of phi drawn here.
+    paramj = param;
+    paramj.unknowns = 'beta_lambda';
+    for j = 1:M
+        paramj.phi = phi(j);
+        postj = eval_posterior(paramj);
+        L = chol(postj.sigma2);
+        l = gamrnd(postj.a1, 1/postj.b1);
+        sample(j, 1:paramj.Nbeta) = postj.loc' + randn(1, paramj.Nbeta)*L/sqrt(l);
+        sample(j, end-1) = l;
+        sample(j, end) = phi(j);
+    end
 end
 
 end

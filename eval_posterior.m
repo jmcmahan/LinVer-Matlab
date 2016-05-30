@@ -213,6 +213,9 @@ function [pbeta, plambda, pphi, xphi, c, phiparam] = eval_beta_lambda_phi_params
         % so for plotting purposes, it needs to be incorporated back in. Only have this
         % for the uniform prior since that seems to be working fine, but this needs to be
         % done for the other phi priors if they are implemented
+
+        % NOTE: this one is accessed in post.pphi. The other one, which should only be used
+        % with the quadrature weights, is accessible in post.phiparam.pphi.
         pphi = pphi / (b-a);
     end
     disp('Done.');
@@ -223,11 +226,23 @@ function [pbeta, plambda, pphi, xphi, c, phiparam] = eval_beta_lambda_phi_params
 
     pbeta = @(beta) beta_marginal(phiparam, beta); 
     plambda = @(lambda) lambda_marginal(phiparam, lambda);
-
+    pphi = @(phi) phi_post_interp(phi, xphi, pphi);
 
     debug.wphi = wphi;
 end
 
+
+
+function p = phi_post_interp(phi, xphi, pphi)
+
+    
+    p = interp1(xphi, pphi, phi);
+    
+    % We'll just set anything outside of the smallest and largest values of xphi
+    % to 0 likelihood.
+    p(phi > xphi(end)) = 0;
+    p(phi < xphi(1)) = 0;
+end
 
 function [f, a1, b1, dof, scl, loc, pbeta] = phi_integrand(param, phi)
 % f = phi_integrand(param, post, phi) : Evaluate part of the integrand involved
