@@ -236,7 +236,7 @@ end
 function p = phi_post_interp(phi, xphi, pphi)
 
     
-    p = interp1(xphi, pphi, phi);
+    p = interp1(xphi, pphi, phi, 'spline');
     
     % We'll just set anything outside of the smallest and largest values of xphi
     % to 0 likelihood.
