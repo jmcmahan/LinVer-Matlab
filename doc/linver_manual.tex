@@ -1,0 +1,282 @@
+\documentclass{book}
+\usepackage{amsmath, amsthm, amssymb, amsfonts, amssymb}
+\usepackage{fullpage, graphicx, graphics}
+
+
+% Use to prevent indenting paragraphs
+%\setlength{\parindent}{0in}
+%\setlength{\parskip}{8pt plus 1pt minus 1pt}
+
+% Remove blank pages between chapters
+%\let\cleardoublepage\clearpage
+
+% All this controls the margins - change if you want
+%\oddsidemargin=0.10in
+%\evensidemargin=0.10in
+%\textwidth=6in
+%\topmargin=0in
+%\textheight=9in
+% Header stuff
+%\headheight=0in
+%\headsep=0in
+
+
+\title{Linver Manual}
+%\author{Jerry Mcmahan}
+\begin{document}
+
+\maketitle
+%\tableofcontents
+
+Linver is a reference Matlab implementation of a verification framework for Bayesian inference algorithms. It is
+based on a linear regression problem for which analytical or semi-analytical solutions are known. As
+Markov chain Monte Carlo (MCMC) algorithms are a popular means of performing Bayesian inference, 
+it provides a rigorous means of verifying the output chains of such algorithms are distributed correctly
+via an implementation of a hypothesis test for equal distributions based on the energy distance
+statistic (ADD CITATION). While the main goal of the code is as a reference for those interested in 
+implementing the framework in other verification software, it is also useable as-is as a basic verification
+tool. 
+
+\chapter{Parameters of the Linear Equation}
+\label{chap:lineqn}
+The verification framework is based on Bayesian inference for the linear equation defined by
+\begin{align*}
+y = G\beta + \varepsilon(\lambda, \phi).
+\end{align*}
+The variables making up this equation are:
+\begin{align*}
+y &: \text{ A vector of N observations.} \\
+G &: \text{ The } N \times N_\beta \text{ design matrix.} \\
+\beta &: \text{ The } N_\beta \times 1 \text{ column vector } 
+	     \begin{bmatrix}\beta_1 & \cdots & \beta_{N_\beta}\end{bmatrix}^T 
+	     \text{ of regression parameters.} \\
+\varepsilon &: \text{ The } N \times 1 \text{ column vector of observation noise.} \\
+\lambda &: \text{ The scale parameter for the noise.} \\
+\phi &: \text{ The correlation parameter for the noise covariance.}
+\end{align*}
+In this implementation of the framework, the first column of the design matrix $G$ is all one's, so the first
+regression parameter $\beta_1$ is a bias term. The remaining entries of $G$ (if any) are drawn from a
+standard normal distribution (i.e., mean 0 and variance 1). This choice of $G$ is not crucial to the framework
+as-implemented and can be substituted. 
+
+The observation noise is zero-mean and normally distributed so that $\varepsilon \sim N\left(0, C\right)$
+with the $N \times N$ covariance matrix $C(\lambda, \phi)$ depending on the parameters $\lambda, \phi$. The 
+$\lambda,\phi$ dependence is expressed by
+\begin{align*}
+C(\lambda, \phi) = \frac{1}{\lambda}R(\phi),
+\end{align*}
+where $R(\phi)$ is the correlation function which depends on $\phi$. The framework includes three possible choices
+of correlation:
+\begin{align*}
+\text{No correlation: } R(\phi) &= 
+\begin{bmatrix} 
+	1 & 0 & 0 & \cdots & 0 \\
+	0 & 1 & 0 & \cdots & 0 \\
+	0 & 0 & 1 & \cdots & 0 \\
+	\vdots & \vdots & \vdots & \ddots & \vdots \\
+	0 & 0 & 0 & \cdots & 1	
+\end{bmatrix} \\
+\text{Equicorrelation: } R(\phi) &= 
+\begin{bmatrix}
+	1    & \phi & \phi & \cdots  &\phi &  \phi \\
+	\phi & 1    & \phi & \cdots  & \phi & \phi \\
+	\phi & \phi    & 1 & \cdots  & \phi & \phi \\
+	\vdots & \vdots & \vdots  & \ddots & \vdots & \vdots \\
+	\phi & \phi & \phi & \cdots & 1 & \phi \\
+	\phi & \phi & \phi & \cdots & \phi & 1 	
+\end{bmatrix}\\
+\text{AR(1) correlation: } R(\phi) &= 
+\begin{bmatrix}
+	1    & \phi & \phi^2 & \cdots  &\phi^{N-2} &  \phi^{N-1} \\
+	\phi & 1    & \phi & \cdots  & \phi^{N-3} & \phi^{N-2} \\
+	\phi^2 & \phi    & 1 & \cdots  & \phi^{N-4} & \phi^{N-3} \\
+	\vdots & \vdots & \vdots  & \ddots & \vdots & \vdots \\
+	\phi^{N-2} & \phi^{N-3} & \phi^{N-4} & \cdots & 1 & \phi \\
+	\phi^{N-1} & \phi^{N-2} & \phi^{N-3} & \cdots & \phi & 1 	
+\end{bmatrix}\\
+\end{align*}
+For each of the correlation cases, the correlation parameter $\phi$ is restricted to a different domain:
+\begin{align*}
+\text{No correlation: } &\phi \in \emptyset\\
+\text{Equicorrelation: } &\phi \in [0, 1)\\
+\text{AR(1) correlation: } &\phi \in (-1, 1)
+\end{align*} 
+Note that although we have defined the domain for $\phi$ in the no correlation case to be the empty set since
+the corresponding correlation matrix in this case has no $\phi$ dependence. The reason for using these choices
+of covariance functions is that these choices each have known analytical forms for the inverse and determinant.
+This facilitates computation of the exact solution to the Bayesian inverse problems described below, as the inverse
+and determinant of the covariance matrices appear in the analytical and semi-analytical solutions for the parameter
+distributions. 
+
+\chapter{Bayesian Inference}
+The purpose of the framework is to provide a means of verifying Bayesian inference algorithms using the
+equations and parameters in Chapter~\ref{chap:lineqn}. The framework has three different cases of unknown
+parameters depending on which of the parameters $\beta, \lambda,$ and $\phi$ are treated as unknown. 
+The cases used in the framework are summarized in the following table.
+
+\vspace{.1in}
+\centerline{
+\def\arraystretch{1.5}
+\begin{tabular} {| c | c | c | c |}
+\hline
+Case & Known & Unknown & Calibration Parameters \\
+\hline
+1 & $\lambda, \phi$ & $\beta$ & $\hat \beta$ \\
+2 & $\phi$ & $\beta, \lambda$ & $\hat \beta, \hat \lambda$ \\
+3 & \text{None} & $\beta, \lambda, \phi$ & $\hat \beta, \hat \lambda, \hat \phi$ \\
+\hline
+\end{tabular}
+}
+
+\vspace{.1in}
+Bayesian inference relies on Bayes rule
+\begin{align*}
+p\left(\left. \hat \theta \right| y  \right) = \frac{p\left( y \left| \hat \theta \right. \right) p_0\left(\hat \theta\right)} { p\left(y\right)},
+\end{align*}
+where $\hat \theta$ is the inferred parameter, $y$ is the data, and the $p(\cdot)$ functions refer to
+the following likelihoods:
+\begin{align*}
+p\left(\left. \hat \theta \right| y \right) &: \text{ Posterior of parameter value } \hat \theta \text{ given data } y \\
+p\left(\left. \hat \theta \right| y \right) &: \text{ Likelihood of data } y \text{ given parameter value } \hat \theta \\
+p_0\left(\hat \theta\right) &: \text{ Prior for inferred parameter value } \hat \theta \\
+p\left(y\right) &: \text{ Marginal likelihood of the data } y \text{ given by }
+ \int_{D(\hat \theta)} p\left( y \left| \hat \theta \right. \right) p_0\left(\hat \theta\right)\,d\hat\theta
+\end{align*}
+
+As can be determined from the above table and Bayes rule above, the verification framework computes the following
+marginal posteriors according to which set of parameters are chosen to be calibrated.
+\begin{align*}
+\textbf{Case 1} &: p\left(\left. \hat \beta \right| y\right)\\
+\textbf{Case 2} &: p\left(\left. \hat \beta \right| y\right), \;\; p\left(\left. \hat \lambda \right| y\right) \\
+\textbf{Case 3} &: p\left(\left. \hat \beta \right| y\right), \;\; p\left(\left. \hat \lambda \right| y\right), \;\; p\left(\left. \hat \phi \right| y\right) \\
+\end{align*}
+Case~1 and Case~2 are computed exactly, in the sense that an exact parametric distribution for each of the marginal
+posteriors can be derived which can be computed using standard routines for calculating the associated special functions.
+The posterior for Case~3 is an integral expression involving special functions and is computed using numerical integration. 
+Note that Case~3 requires the use of the equicorrelation or AR(1) correlation function, since there is no $\phi$ dependence
+for uncorrelated observation error. 
+
+For each of the three cases of unknown parameters, there are two choices of prior. These are labeled the ``Non-informative"
+and ``Gaussian" priors, according to whether the marginal prior for $\hat \beta$ is uniform or Gaussian. The following describes
+the priors for each of the calibrated variables.
+
+\vspace{.1in}
+\centerline{\textbf{Non-informative}}
+\begin{align*}
+\textbf{Case 1}: &\;\;p_0\left(\hat \beta\right) \propto 1
+\\
+\textbf{Case 2}: &\;\;p_0\left(\left. \hat \beta \right| \hat \lambda \right) \propto 1\\ 
+			&\;\;p_0\left(\hat \lambda \right) \propto \frac{1}{\hat \lambda}
+\\
+\textbf{Case 3}: &\;\;p_0\left(\left. \hat \beta \right| \hat \lambda, \hat \phi \right) \propto 1 \\
+			&\;\;p_0\left(\left. \hat \lambda \right| \hat \phi \right) \propto \frac{1}{\hat \lambda} \\
+			&\;\;p_0\left(\hat \phi\right) = \frac{1}{\phi_H - \phi_L}
+\end{align*}
+The priors which are described as a proportional expression are improper priors. The parameters $\phi_H$ and
+$\phi_L$ are the high and low values of the domain of $\phi$, so that $\phi \in [\phi_L, \phi_H]$. These are configurable
+parameters in the framework and will depend on the choice of correlation function. These are the only parameters
+needed for the non-informative prior, and only when $\phi$ is an unknown parameter (i.e., only in Case~3). 
+
+
+\vspace{.1in}
+\centerline{\textbf{Gaussian}}
+\begin{align*}
+\textbf{Case 1}: &\;\;p_0\left(\hat \beta\right) \text{ is } N\left(\mu_0, \frac{1}{\lambda} \Sigma_0\right)
+\\
+\textbf{Case 2}: &\;\;p_0\left(\left. \hat \beta \right| \hat \lambda \right)  \text{ is } N\left(\mu_0, \frac{1}{\hat \lambda} \Sigma_0\right)\\ 
+			&\;\;p_0\left(\hat \lambda \right) \propto \frac{1}{\hat \lambda}
+\\
+\textbf{Case 3}: &\;\;p_0\left(\left. \hat \beta \right| \hat \lambda, \hat \phi \right)   \text{ is } N\left(\mu_0, \frac{1}{\hat \lambda} \Sigma_0\right) \\
+			&\;\;p_0\left(\left. \hat \lambda \right| \hat \phi \right) \propto \frac{1}{\hat \lambda} \\
+			&\;\;p_0\left(\hat \phi\right) = \frac{1}{ \phi_H - \phi_L}
+\end{align*}
+The only difference between the non-informative and Gaussian cases is the prior on $\hat \beta$ is Gaussian with a
+prescribed $N_\beta \times 1$ mean vector $\mu_0$ and unscaled $N_\beta \times N_\beta$ covariance $\Sigma_0$. The
+framework uses diagonal $\Sigma_0$, although this is not strictly necessary. Make note that the prior distribution in 
+Case~1 has a covariance matrix scaled by $1 / \lambda$, the known value of $\lambda$. In the other cases $\lambda$ is
+unknown so this scaling is replaced by $1 / \hat \lambda$, the calibrated variable. 
+
+\chapter{Using the Verification Framework}
+The following is an outline of the steps involved in using the verification framework.
+\begin{enumerate}
+\item Choose the size of the problem: $N$, the number of observations and $N_\beta$, the number of
+	regression parameters. 
+\item Choose the values of the true parameters $\beta, \lambda, \phi$. These are the values that the Bayesian inference
+	algorithm will attempt to learn from the data. 
+\item Set the design matrix $G$. The default recommendation (and what is used in examples) is to set all entries in the first
+	column to ones and fill the remaining entries (if any) with data drawn from a standard normal distribution.
+\item Use the true parameter $\beta$ to determine the error-free model output $y_0$ according to $y_0 = G\beta$. 
+\item Choose a correlation function $R(\phi)$: no correlation, equicorrelation, or AR(1) correlation. 
+\item Use the chosen correlation function and the true parameters $\lambda, \phi$ to generate the observation error
+	$\varepsilon$ according to the distribution $N(0, C)$ where $C = R(\phi) / \lambda$. 
+\item Add the observation error $\varepsilon$ to the error-free model output $y_0$ to obtain the calibration data 
+	$y = y_0 + \varepsilon$. 
+\item Choose which parameters to calibrate (i.e., which are treated as unknowns): 
+	Case~1: $\hat \beta$, 
+	Case~2: $\hat\beta, \hat \lambda$, or
+	Case~3: $\hat\beta, \hat \lambda, \hat \phi$. If using Case~3, choose the parameters $\phi_L, \phi_H$ defining
+	restricting the domain of $\phi$. These need to be chosen in agreement with the domain associated with the
+	correlation function. 
+\item Choose whether to use the non-informative prior or the Gaussian prior for the regression parameters $\hat \beta$.
+	If using the Gaussian prior, choose the prior mean $\mu_0$ and prior un-scaled covariance $\Sigma_0$.
+\item Using the calibration routine to be verified, calculate the posterior for the unknown parameters. It is important that this 
+	be done using the calibration data $y$ generated above, using the same prior.
+\item Use the verification framework to calculate the true posterior using all the chosen parameters as input.
+\item Compare the true posterior computed by the verification framework with that computed by the routine being verified.
+\end{enumerate}
+
+This outline leaves open the specific ways the comparison between the true posterior and the output of the calibration
+routine are to be done. There are multiple ways to do this, some being more appropriate for different types of calibration
+routines. We specifically mention the case of verifying Markov chain Monte Carlo (MCMC) output, as we have included 
+a method aimed at this common case. Here we recommend a statistical hypothesis test based on the energy statistic, and 
+the Matlab implementation includes an implementation of this.
+
+\chapter{Using the Matlab Implementation}
+The Matlab scripts {\tt demo\_case1.m, demo\_case2.m, demo\_case3.m} demonstrate the use of the Matlab implementation
+for Case~1 ($\beta$ unknown), Case~2 ($\beta, \lambda$ unknown), and Case~3 ($\beta, \lambda, \phi$ unknown) respectively.
+
+The main function used in computing the posterior is {\tt eval\_posterior}. This function takes a structure {\tt param} as input
+which defines all the parameters of the problem. The fields of this structure are as follows.
+
+\vspace{.1in}
+\begin{tabular}{l l}
+{\tt param.N}: & Number of observations. \\
+{\tt param.Nbeta}: & Number of regression parameters. \\
+{\tt param.G}:  & {\tt N} by {\tt Nbeta} design matrix. \\
+{\tt param.prior}: & Structure defining the prior. See below for more information. \\
+{\tt param.beta}: & {\tt Nbeta} by 1 vector of the true regression parameters $\beta$ \\
+{\tt param.lambda}: & Scalar value of the true scale parameter $\lambda$. \\
+{\tt param.phi}: & Scalar value of the true correlation parameter $\phi$. \\  
+{\tt param.corrfunc}: & String defining the correlation function type: {\tt "none", "equal", "ar"}. \\
+{\tt param.y}: & {\tt N} by 1 vector of observations. \\
+{\tt param.unknowns}: & String defining which parameters are unknown. See below. \\
+{\tt param.betarange}: & {\tt Nbeta} by 2 matrix. Left column is lower limit of $\beta$, right column is upper limit. \\
+{\tt param.lambdarange}: & 1 by 2 matrix. Left value is lower limit of $\lambda$, right column is upper limit. \\
+{\tt param.phirange}: & 1 by 2 matrix. Left value is lower limit of $\phi$, right column is upper limit. \\
+\end{tabular}
+
+\vspace{.1in}
+\textbf{Prior structure}. Let the prior structure be named {\tt prior}. It always has the field {\tt prior.type} which is a string variable with
+two possible values: {\tt "noninformative"} or {\tt gaussian}. If the {\tt prior.type} field is set to {\tt "noninformative"}, no other
+fields need to be defined. If it is set to {\tt "gaussian"}, the field {\tt prior.sigma0} must be the {\tt Nbeta} by {\tt Nbeta}
+unscaled covariance and {\tt prior.mu0} is the {\tt Nbeta} by 1 mean vector of the prior. 
+
+\vspace{.1in}
+\textbf{Unknowns strings}. The {\tt prior.unknowns} field can take one of the string values:
+{\tt "beta", "beta\_lambda", "beta\_lambda\_phi"}. These correspond to whether the unknowns are Case~1: $\beta$, 
+Case~2: $\beta, \lambda$, or Case~3: $\beta,\lambda,\phi$. 
+
+\vspace{.1in}
+\textbf{Calibration data}. The function {\tt eval\_noise} takes the same {\tt param} structure above as input, except {\tt param.y}
+need not be defined. It returns a {\tt N} by 1 vector of unscaled observation error. This vector can be divided by $\sqrt{\lambda}$
+and added to the error-free model output to provide calibration data.
+
+\vspace{.1in}
+\textbf{Posterior structure}. The function {\tt eval\_posterior} returns a structure which we call {\tt post}. The fields of
+this structure depend on which parameters are unknown. 
+
+
+NEXT: Describe what the posterior structure has in each of the unknown cases.
+
+NEXT: Describe the use of the energy distance test functions. 
+\end{document}

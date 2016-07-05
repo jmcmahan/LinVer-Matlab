@@ -1,48 +1,37 @@
-function result = do_energy_test(param, post, alpha, numtests, N1, N2)
-% result = do_energy_test(param, post) : Do the energy statistic
-% test 100 times for 100 samples from the posterior and 100 samples
-% computed via MCMC at confidence 0.05. Result is a structure like so:
+function result = do_energy_test(versample, param, post, alpha, numtests, N1)
+% result = do_energy_test(versample, param, post) : Do the energy statistic
+% test 100 times for 100 samples from the posterior compared with the sample 
+% provided in versample at confidence 0.05. Result is a structure:
 %
-% result.exactchain = samples from the exact posterior
-% result.mcmcsamp = sample from the MCMC posterior
-% result.chain = entire MCMC chain
-% result.accept_ratio = accept ratio of MCMC chain
 % result.fail_ratio = ratio of tests which failed
+% result.exact_sample = sample drawn from the exact posterior
 %
-% result = do_energy_test(param, post, alpha) : Same as above but set
+% result = do_energy_test(versample, param, post, alpha) : Same as above but set
 % confidence to alpha.
 %
-% result = do_energy_test(param, post, alpha, numtests) : Same as above
+% result = do_energy_test(versample, param, post, alpha, numtests) : Same as above
 % but do "numtests" number of tests. 
 %
-% result = do_energy_test(param, post, alpha, numtests, N1, N2) : Same
-% as above but use N1 samples from the exact posterior and N2 samples
-% from the MCMC chain.
+% result = do_energy_test(versample, param, post, alpha, numtests, N1) : Same
+% as above but use N1 samples from the exact posterior.
 
-if nargin < 3
+if nargin < 4
     alpha = 0.05;
 end
 
-if nargin < 4
+if nargin < 5
     numtests = 100;
 end
 
 if nargin < 6
     N1 = 100;
-    N2 = 100;
+    N2 = length(versample);
 end
 
 
 
-% We'll take every 100th iterate as the MCMC sample
-[chain, aratio] = do_simple_mcmc(param, post, 1 + N2*100); 
+s2 = versample;
 
-s2 = chain(2:100:end, :); 
-
-result.chain = chain;
-result.accept_ratio = aratio;
-result.exactsamp = zeros(numtests*N1, size(s2,2));
-result.mcmcsamp = s2;
 
 numfail = 0;
 disp('Starting energy tests...')
