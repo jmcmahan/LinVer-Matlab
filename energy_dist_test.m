@@ -43,15 +43,18 @@ estat = zeros(B+1, 1);
 eobs = EnSt2(s1, s2);
 estat(1) = eobs;
 
+
 for j = 2:B+1
     %idx = randsample(N, N);
     idx = randperm(N);
     x = pool(:, idx(1:n1));
     y = pool(:, idx(n1+1:end));
     estat(j) = EnSt2(x, y);
+
 end
 
 pval = sum(eobs < estat) / (B+1);
+
 
 if alpha > pval
     reject = true;

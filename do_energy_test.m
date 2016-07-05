@@ -33,13 +33,17 @@ end
 s2 = versample;
 
 
+if ~iscolumn(s2)
+    s2 = s2';
+end
+
 numfail = 0;
 disp('Starting energy tests...')
 for j = 1:numtests
     % Drawn from the exact posterior
     s1 = draw_posterior_sample(param, post, N1);
     result.exactsamp((1 + (j-1)*N1):(j*N1), :) = s1;
-    r = energy_dist_test(s1, s2, alpha);
+    r = energy_dist_test(s1', s2', alpha);
     if r
         numfail = numfail + 1;
     end

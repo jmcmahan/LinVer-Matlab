@@ -1,6 +1,7 @@
 \documentclass{book}
 \usepackage{amsmath, amsthm, amssymb, amsfonts, amssymb}
 \usepackage{fullpage, graphicx, graphics}
+\usepackage{cite}
 
 
 % Use to prevent indenting paragraphs
@@ -21,21 +22,28 @@
 %\headsep=0in
 
 
-\title{Linver Manual}
+\title{LinVer Manual}
 %\author{Jerry Mcmahan}
 \begin{document}
 
 \maketitle
 %\tableofcontents
 
-Linver is a reference Matlab implementation of a verification framework for Bayesian inference algorithms. It is
-based on a linear regression problem for which analytical or semi-analytical solutions are known. As
-Markov chain Monte Carlo (MCMC) algorithms are a popular means of performing Bayesian inference, 
-it provides a rigorous means of verifying the output chains of such algorithms are distributed correctly
+LinVer is a reference Matlab implementation of a verification framework for Bayesian inference algorithms 
+outlined
+in \cite{adams01}. It is
+based on a linear regression problem for which analytical or semi-analytical solutions are known.  It provides a 
+rigorous means of testing output chains of Markov chain Monte Carlo (MCMC) algorithms used for 
+Bayesian inference are distributed correctly
 via an implementation of a hypothesis test for equal distributions based on the energy distance
-statistic (ADD CITATION). While the main goal of the code is as a reference for those interested in 
+statistic \cite{szekely01}. While the main goal of the code is as a reference for those interested in 
 implementing the framework in other verification software, it is also useable as-is as a basic verification
-tool. 
+tool. Mathematical details of the framework can be found in Appendix~A of \cite{adams01} and will
+be described further in a forthcoming paper. 
+
+Be aware that LinVer is in development and may contain some bugs. The implementation
+of the energy statistic test is not completely verified. The calculation of the true posteriors is believed
+to be correct, however, for the basic cases. 
 
 \chapter{Parameters of the Linear Equation}
 \label{chap:lineqn}
@@ -220,7 +228,8 @@ The following is an outline of the steps involved in using the verification fram
 \item Choose whether to use the non-informative prior or the Gaussian prior for the regression parameters $\hat \beta$.
 	If using the Gaussian prior, choose the prior mean $\mu_0$ and prior un-scaled covariance $\Sigma_0$.
 \item Using the calibration routine to be verified, calculate the posterior for the unknown parameters. It is important that this 
-	be done using the calibration data $y$ generated above, using the same prior.
+	be done using the calibration data $y$ generated above, using the same prior, and also using the same design
+	matrix $G$ set above.
 \item Use the verification framework to calculate the true posterior using all the chosen parameters as input.
 \item Compare the true posterior computed by the verification framework with that computed by the routine being verified.
 \end{enumerate}
@@ -263,7 +272,7 @@ unscaled covariance and {\tt prior.mu0} is the {\tt Nbeta} by 1 mean vector of t
 
 \vspace{.1in}
 \textbf{Unknowns strings}. The {\tt prior.unknowns} field can take one of the string values:
-{\tt "beta", "beta\_lambda", "beta\_lambda\_phi"}. These correspond to whether the unknowns are Case~1: $\beta$, 
+{\tt "beta"}, {\tt"beta\_lambda"}, {\tt"beta\_lambda\_phi"}. These correspond to whether the unknowns are Case~1: $\beta$, 
 Case~2: $\beta, \lambda$, or Case~3: $\beta,\lambda,\phi$. 
 
 \vspace{.1in}
@@ -272,11 +281,114 @@ need not be defined. It returns a {\tt N} by 1 vector of unscaled observation er
 and added to the error-free model output to provide calibration data.
 
 \vspace{.1in}
+\textbf{Range parameters}. The {\tt param.betarange}, {\tt param.lambdarange}, and {\tt param.phirange} fields are defined
+for practical purposes to bound the range of the parameters. In the ideal problem, each component of $\beta$ can be
+any component in $\mathbb{R}$ and $\lambda$ ranges from $(0, \infty)$. The ranges for these parameters are used only by the 
+Metropolis-Hastings algorithm provided as an example routine for verification and should not affect the true posterior calculation.
+The range for $\phi$, however, is different, as this defines range of the uniform prior. It is necessary to choose this prior so that
+the range is smaller than the range of the actual correlation parameter ($[0,1)$ for equicorrelation and $(-1, 1)$ for AR(1) 
+correlation) as the posterior for $\phi$ involves integrals which do not converge if every point in the domain of $\phi$ is 
+weighted by a uniform prior. 
+
+\vspace{.1in}
 \textbf{Posterior structure}. The function {\tt eval\_posterior} returns a structure which we call {\tt post}. The fields of
-this structure depend on which parameters are unknown. 
+this structure depend on which parameters are unknown. The posterior structure always includes a field defining
+a function for the marginal posterior density of each unknown. These are given by {\tt post.pbeta},
+{\tt post.plambda}, and {\tt post.pphi}. These functions are used by passing a vector argument of values to evaluate
+the posterior at. For example, the code
+
+\vspace{.1in}
+ {\tt beta = linspace(-1,1)'; y = post.pbeta(beta);} 
+\vspace{.1in}
+
+\noindent evaluates the posterior for a scalar-valued $\beta$ at 100 evenly spaced points between -1 and 1 and stores the result
+in the variable {\tt y}. If $N_\beta > 1$ then the argument should be an $M \times N_\beta$ vector, where $M$ is the
+number of points in parameter space to evaluate the posterior of $\beta$ at. The functions for the posterior of
+$\lambda$ and $\phi$ work similarly, except there is no need to consider a vector-valued case since these are always
+scalar-valued random variables. 
+
+In addition to these functions, in the cases where the posteriors are known parametric distributions, relevant
+parameters are also returned. In Case~1, $\beta$ is unknown and its posterior is Gaussian with mean $\mu_2$
+and covariance $\Sigma_2 / \lambda$ (where $\lambda$ is the known scale parameter). These are returned in the
+posterior as {\tt post.mu2} and {\tt post.sigma2}. In Case~2, $\beta$ and $\lambda$ are both unknown. The posterior
+of $\lambda$ is a Gamma distribution with shape parameter $a_1$ and scale parameter $b_1$. These are returned
+as {\tt post.a1} and {\tt post.b1}. Note that there are multiple conventions for the parameterization of the Gamma
+distribution. The convention used here is compatible with that used in Matlab if {\tt 1 / post.b1} is used for the scale
+parameter. The posterior for $\beta$ is a multivariate $t$-distribution with a scale matrix, location vector, and 
+degrees-of-freedom parameter. These are returned as {\tt post.scl}, {\tt post.loc}, and {\tt post.dof}, respectively. 
+The marginals for Case~3 are not known parametric distributions, so we will not discuss the other fields defined.
+
+\vspace{.1in}
+\textbf{Energy statistic test for equal distributions.} An implementation of a non-parametric test of distribution equality
+for two samples is included in the Matlab code. This provides means of comparing a random sample drawn from the
+posterior with a given sample computed from a Markov chain Monte Carlo code, for example. The function is
+
+\vspace{.1in}
+{\tt results = do\_energy\_test(sample, param, post, alpha, numtests, N)}
+
+\vspace{.1in}
+\noindent where the arguments are: 
+
+\vspace{.1in}
+{\tt sample}: Sample to compare to the true posterior. This should be drawn from the code being verified. It should be
+a $M \times N_{param}$ matrix of $M$ observations of the $N_{param}$-dimensional parameter vector. That is, each
+row is an observation of the parameter vector, whose size $N_{param}$ depends on which parameters are unknown. 
+For Case~1 $N_{param} = N_\beta$ and each observation is the regression parameters. For Case~2 
+$N_{param} = N_\beta + 1$ and each observation is the $N_\beta$ regression parameter observations followed by the 
+$\lambda$ observation. For Case~3 $N_{param} = N_\beta + 2$ and each observation is the $N_\beta$ regression 
+parameters, followed by the $\lambda$ observation, followed by the $\phi$ observation. 
+
+{\tt param}: This is the parameter structure described above.
+
+{\tt post}: This is the posterior structure returned by {\tt eval\_posterior}.
+
+{\tt alpha}: This is the confidence level of the test, between 0 and 1. Lower values represent stricter confidences, but
+will lead to more computationally involved tests. Defaults to 0.05. 
+
+{\tt numtests}: This is the number of hypothesis tests to run. Each test draws a separate set of realizations from the
+posterior to use in the hypothesis test which checks if {\tt sample} is drawn from the same distribution. The number
+of failed tests significantly exceeds {\tt numtests * alpha}, then it is reasonable to expect that {\tt sample}
+comes from a different distribution and the code that generated it failed to produce the correct output at the given
+signficance level. Defaults to 100.
+
+{\tt N}: Number of samples to draw from the true posterior to compare with {\tt sample}. Defaults to 100. 
+
+If the arguments after {\tt post} are omitted, the defaults described above will be used. The {\tt results} structure
+has the following fields. 
+
+\vspace{.1in}
+{\tt results.exactsamp}: This is a {\tt N * numtests} by {\tt Nparam} matrix containing the samples drawn from the
+true posterior for each test. 
+
+{\tt results.fail\_ratio}: This is the ratio of tests run which were rejected. If this value exceeds {\tt alpha} significantly,
+the correctness of {\tt sample} is questionable. 
+
+\vspace{.1in}
+\textbf{Sampling from the true posterior.} The function {\tt draw\_posterior\_sample(param, post, N)} can be used
+to draw $N$ samples from the posterior. The arguments are similar to those described above. 
+
+\vspace{.1in}
+\textbf{Efficient correlation matrix operations.} The structure of the correlation functions used in the framework
+can be exploited to derive efficient recursive algorithms for matrix-vector multiplication, matrix inversion, and
+multiplication by the Cholesky factors of these matrices. These algorithms can make much larger data sizes
+feasible. While these algorithms are not used in the main functions of the Matlab implementation of the framework,
+reference code is provided in {\tt fastchol\_ar1.m}, {\tt fastchol\_eq.m}, {\tt fastmv\_ar1.m}, {\tt fastmv\_eq.m}, 
+{\tt fastmv\_ar1inv.m}, and {\tt fastmv\_eqinv.m}. See the comments in those files for more information. 
+
+\vspace{.1in}
+\textbf{Alternative priors for $\phi$}. The only prior implemented for $\phi$ is the uniform prior above. This is
+computed using Gaussian quadrature rules which are implemented in the file {\tt gauss\_quadrature.m}. That
+file contains additional quadrature rules for placing a Gaussian-distribution prior on $\phi$ and a
+Beta-distribution prior. While that code has been tested and appears to correctly implement the quadratures 
+associated with those priors, the option to uses those priors is not currently included in the framework. This
+could be changed, if desired, by making appropriate changes to the function {\tt eval\_beta\_lambda\_phi\_params} 
+in {\tt eval\_posterior.m}. 
+
+\vspace{.1in}
+\textbf{Other information.} The above provides a basic outline of the verification framework. Additional information
+on other optional features can be found by reading the code and its comments. 
 
 
-NEXT: Describe what the posterior structure has in each of the unknown cases.
-
-NEXT: Describe the use of the energy distance test functions. 
+\bibliographystyle{plain}
+\bibliography{linver_manual}
 \end{document}

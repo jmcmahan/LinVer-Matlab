@@ -45,7 +45,7 @@ result.exactsamp = zeros(numtests*N1, size(s2,2));
 result.mcmcsamp = s2;
 
 
-res_etest = do_energy_test(s2, param, post, alpha, numtests, N1, N2)
+res_etest = do_energy_test(s2, param, post, alpha, numtests, N1);
 result.exactsamp = res_etest.exactsamp;
 result.fail_ratio = res_etest.fail_ratio;
 
