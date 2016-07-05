@@ -13,7 +13,7 @@ to be correct, however, for the basic cases.
 
 ## Basic Example
 
-The files demo\_case1.m, demo\_case2.m, and demo\_case3.m provide examples of how to calculate the true posteriors for the three different cases of unknowns (Case 1: regression parameters unknown, Case 2: regression parameters and scale parameter unknown, Case 3: regression parameters, scale parameter, and correlation parameter unknown). The following bit of code illustrates the setup of a simple verification problem. Additional information can be found in the documentation (doc/linver\_manual.pdf). 
+The files [demo\_case1.m](demo_case1.m), [demo\_case2.m](demo_case2.m), and [demo\_case3.m](demo_case3.m) provide examples of how to calculate the true posteriors for the three different cases of unknowns (Case 1: regression parameters unknown, Case 2: regression parameters and scale parameter unknown, Case 3: regression parameters, scale parameter, and correlation parameter unknown). The following bit of code illustrates the setup of a simple verification problem and is also included as the file [easy\_example.m](easy_example.m). Additional information can be found in the [documentation](doc/linver\_manual.pdf). 
 
     param.N = 300;                          % Number of data points
     param.beta = [1.5 ];                    % True regression parameters
