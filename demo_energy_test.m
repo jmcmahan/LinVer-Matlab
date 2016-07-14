@@ -20,7 +20,7 @@ function result = demo_energy_test(param, post, alpha, numtests, N1, N2)
 % from the MCMC chain.
 
 if nargin < 3
-    alpha = 0.05;
+    alpha = 0.10;
 end
 
 if nargin < 4
@@ -36,6 +36,8 @@ end
 
 % We'll take every 100th iterate as the MCMC sample
 [chain, aratio] = do_simple_mcmc(param, post, 1 + N2*100); 
+
+%[chain, aratio] = do_simple_mcmc_lambda(param, post, 1 + N2*100); 
 
 s2 = chain(2:100:end, :); 
 

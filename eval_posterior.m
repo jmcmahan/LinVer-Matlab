@@ -192,9 +192,7 @@ function [pbeta, plambda, pphi, xphi, c, phiparam] = eval_beta_lambda_phi_params
 
 
     disp('Computing phi...')
-    measure.alpha = param.N;
-    measure.beta = param.N;
-    [pphi, a1, b1, dof, scl, loc, pb] = phi_integrand(param, xphi, measure);
+    [pphi, a1, b1, dof, scl, loc, pb] = phi_integrand(param, xphi);
     c = wphi'*pphi;
     pphi = pphi / c; 
 

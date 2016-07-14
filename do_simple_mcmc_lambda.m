@@ -1,13 +1,18 @@
-function [qchain, aratio, oob] = do_simple_mcmc(param, post, Nchain)
-% [chain, aratio] = do_simple_mcmc(param) - Use a Metropolis-Hastings algorithm to generate
+function [qchain, aratio, oob] = do_simple_mcmc_lambda(param, post, Nchain)
+% [chain, aratio] = do_simple_mcmc_lambda(param) - Use a Metropolis-Hastings algorithm to generate
 % a 10,000 iterate chain drawn from the posterior of the problem defined by param. 
 % Acceptance ratio returned as aratio.
 % 
-% [chain, aratio] = do_simple_mcmc(param, post) - Same as above but use the posterior 
+% [chain, aratio] = do_simple_mcmc_lambda(param, post) - Same as above but use the posterior 
 % estimates to initialize the proposal matrix.
 %
-% [chain, aratio] = do_simple_mcmc(param, post, Nchain) - Same as above, but generate Nchain 
+% [chain, aratio] = do_simple_mcmc_lambda(param, post, Nchain) - Same as above, but generate Nchain 
 % samples.
+%
+% This code is similar to do_simple_mcmc, but samples lambda from a gamma
+% distribution rather than including it as part of the Gaussian proposal
+% matrix. 
+%
 %
 % NOTE: This does not use any of the unknown parameters in anyway. 
 
@@ -18,6 +23,7 @@ end
 Nbeta = param.Nbeta;
 y = param.y;
 G = param.G;
+N = param.N;
 
 if strcmp(param.unknowns, 'beta')
     calcase = 1;
@@ -58,7 +64,6 @@ if calcase > 3
 end
 
 
-
 % NOTE: Using the actual value of beta for simplicity. A somewhat better
 % exercise would be to use the MLE estimate. Since we are verifying the
 % distribution, though, and not just the point estimate, this should still
@@ -69,17 +74,32 @@ end
 
 res = y - G*param.beta;
 Ri = eval_corrfuncinv(param);
+param.Ri = Ri;
 s2ols = res'*Ri*res / (param.N - Np);
 
-V = zeros(Np);
-V(1:param.Nbeta, 1:param.Nbeta) = s2ols*inv(G'*Ri*G);
+% Lambda will be sampled from a gamma distribution rather than the
+% Gaussian proposal.
+if calcase == 1
+    V = zeros(Np);
+else
+    V = zeros(Np-1);
+end
+
+if calcase > 1
+    V(1:param.Nbeta, 1:param.Nbeta) = inv(G'*Ri*G) * s2ols;
+else
+    % Case 1 has lambda known, so use it here.
+    V(1:param.Nbeta, 1:param.Nbeta) = inv(G'*Ri*G) / param.lambda;
+end
+
+
 if calcase > 1
     % For now, just put something reasonable for the range of the hyper
     % parameters we're using in testing. 
     %V(param.Nbeta+1, param.Nbeta+1) = 10;
     lrange = param.lambdarange(2) - param.lambdarange(1);
-    V(param.Nbeta+1, param.Nbeta+1) = lrange / 50;
 end
+
 if calcase > 2
     prange = param.phirange(2) - param.phirange(1);
     V(end, end) = prange / 100;
@@ -90,6 +110,10 @@ L = chol(V)';
 acceptnum = 1;
 oob = 0;
 
+% Parameters for sampling lambda from the gamma distribution 
+Ns = 0.01;
+s2s = s2ols; 
+alpha = 0.5 * (Ns + N); 
 
 for k = 2:Nchain
     accept = false;
@@ -99,8 +123,34 @@ for k = 2:Nchain
     end
 
     qp = qchain(k-1, :)';
-    qstar = qp + L*randn(Np, 1);
-
+    if calcase == 1
+        qstar = qp + L*randn(length(L), 1);
+    elseif calcase == 2
+        qstar = qp(1:Nbeta) + L*randn(length(L), 1);
+        % Add in lambda, sampled from the gamma distribution
+        qstar = [qstar(1:Nbeta); qp(end)]; 
+    elseif calcase == 3
+        qstar = qp([1:Nbeta, Nbeta+2]) + L*randn(length(L), 1);
+        % Add in in lambda, sampled from gamma distribution
+        qstar = [qstar(1:Nbeta); qp(end-1); qstar(end)]; 
+    end
+    
+    if calcase > 1
+        if calcase == 2
+            ss = sum_of_squares(param, qstar(1:end-1));
+        elseif calcase == 3
+            ss = sum_of_squares(param, qstar(1:end-2), qstar(end));
+        else
+            disp('ERROR: Invalid calibration cases (should never see this).')
+        end
+        
+        beta = 0.5 * (Ns * s2s + ss);
+        % New lambda sample. Note this is put in the chain afterwards,
+        % regardless of rejection / acceptance of the proposed parameters.
+        lnew = gamrnd(alpha, 1 / beta); 
+    end
+    
+    
     if sum(qstar <= qrange(:, 1)) || sum(qstar >= qrange(:, 2))
         % Set the probability to 0 if the sample is out-of-bounds
         oob = oob + 1; 
@@ -121,8 +171,15 @@ for k = 2:Nchain
             qchain(k,:) = qp';
         end
     end
+    
     if accept
         acceptnum  = acceptnum + 1;
+    end
+    
+    if calcase == 2
+        qchain(k, end) = lnew;
+    elseif calcase == 3
+        qchain(k, end-1) = lnew;
     end
 end
 
@@ -132,7 +189,24 @@ aratio = acceptnum/Nchain;
 end
 
 
-
+function ss = sum_of_squares(param, beta, phi)
+    if nargin < 3
+%        Ri = eval_corrfuncinv(param);
+        % Abuse! We've added Ri in this case. When phi is known this
+        % saves from doing a Cholesky factorization each iteration
+        % of the chain. 
+        Ri = param.Ri;
+    else
+        Ri = eval_corrfuncinv(param, phi);
+    end
+    if isrow(beta)
+        beta = beta';
+    end
+    G = param.G;
+    y = param.y;
+    res = y - G*beta; 
+    ss = res' * Ri * res;
+end
 
 
 function ll = log_likelihood(param, beta, lambda, phi)

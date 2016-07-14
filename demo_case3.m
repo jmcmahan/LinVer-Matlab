@@ -1,11 +1,11 @@
 N = 200;                % Number of data points
-Nbeta = 1;              % Number of regression parameters
+Nbeta = 2;              % Number of regression parameters
 
 % True parameters. These are used to generate data and that
 % data is used to infer these parameters. 
 beta = randn(Nbeta, 1)*10;
 lambda = 100 + rand*200;
-phi = 0.1;
+phi = 0.25;
 
 % Non-informative prior only needs the type
 prior_noninformative.type = 'noninformative';   
@@ -28,7 +28,7 @@ param1.beta = beta;
 param1.lambda = lambda;
 param1.phi = phi;
 param1.betarange = [-100*ones(Nbeta,1) 100*ones(Nbeta,1)];
-param1.lambdarange = [1e-3, 1e3];
+param1.lambdarange = [1e-1, 1e3];
 
 % Correlation type
 param1.corrfunc = 'none';
@@ -76,31 +76,14 @@ param3.phirange = [0, 0.95];
 e3 = eval_noise(param3);
 param3.y = G*beta + e3 / sqrt(lambda);
 
+disp('******************************************************')
+disp('Beta,lambda,phi unknown, equicorrelated noise, uniform prior')
+disp('******************************************************')
 post3 = eval_posterior(param3);
-
-if 1 == 1
-b = linspace(-0.15, 0.15, 2^8) + param3.beta;
-l = linspace(param3.lambdarange(1), param3.lambdarange(2), 2^8);
-[chain3, aratio3, oob3] = do_simple_mcmc(param3, post3, 5e4); 
-
-[phih, phix] = hist(chain3(5000:end,3), 200);
-[lamh, lamx] = hist(chain3(5000:end,2), 200);
-[beth, betx] = hist(chain3(5000:end,1), 200);
-
-phic = trapz(phix, phih);
-lamc = trapz(lamx, lamh);
-betc = trapz(betx, beth); 
-
-figure(1);
-plot(phix, phih/phic, post3.xphi, post3.pphi)
-title('phi');
-figure(2);
-plot(lamx, lamh/lamc, l, post3.plambda(l));
-title('lambda');
-figure(3);
-plot(betx, beth/betc, b, post3.pbeta(b));
-title('beta');
-end
+%[chain3, aratio3, oob3] = do_simple_mcmc_better(param3, post3, 1e4); 
+%result3 = demo_energy_test(param3, post3, 0.05, 50, 200, 200); 
+disp('Done.')
+disp(' ')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Equi-correlated error 
@@ -124,30 +107,8 @@ e5 = eval_noise(param5);
 param5.y = G*beta + e5 / sqrt(lambda);
 
 post5 = eval_posterior(param5);
+[chain5, aratio5, oob5] = do_simple_mcmc(param5, post5, 1e4); 
 
-if 1 == 0 
-b = linspace(-0.5, 0.5, 2^8) + param5.beta;
-l = linspace(param5.lambdarange(1), param5.lambdarange(2), 2^8);
-[chain5, aratio5, oob5] = do_simple_mcmc(param5, post5, 5e4); 
-
-[phih, phix] = hist(chain5(5000:end,3), 200);
-[lamh, lamx] = hist(chain5(5000:end,2), 200);
-[beth, betx] = hist(chain5(5000:end,1), 200);
-
-phic = trapz(phix, phih);
-lamc = trapz(lamx, lamh);
-betc = trapz(betx, beth); 
-
-figure(1);
-plot(phix, phih/phic, post5.xphi, post5.pphi)
-title('phi');
-figure(2);
-plot(lamx, lamh/lamc, l, post5.plambda(l));
-title('lambda');
-figure(3);
-plot(betx, beth/betc, b, post5.pbeta(b));
-title('beta');
-end
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

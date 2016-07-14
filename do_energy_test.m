@@ -25,16 +25,22 @@ end
 
 if nargin < 6
     N1 = 100;
-    N2 = length(versample);
 end
 
 
+if strcmp(param.unknowns, 'beta')
+    paramdim = param.Nbeta;
+elseif strcmp(param.unknowns, 'beta_lambda')
+    paramdim = param.Nbeta + 1;
+elseif strcmp(param.unknowns, 'beta_lambda_phi')
+    paramdim = param.Nbeta + 2;
+else
+    disp('Error in do_energy_test: Invalid "param.unknowns"');
+end
 
 s2 = versample;
-
-
-if ~iscolumn(s2)
-    s2 = s2';
+if size(s2, 2) ~= paramdim
+    s2 = s2'; 
 end
 
 numfail = 0;
@@ -42,6 +48,7 @@ disp('Starting energy tests...')
 for j = 1:numtests
     % Drawn from the exact posterior
     s1 = draw_posterior_sample(param, post, N1);
+    
     result.exactsamp((1 + (j-1)*N1):(j*N1), :) = s1;
     r = energy_dist_test(s1', s2', alpha);
     if r
