@@ -59,7 +59,7 @@ G &: \text{ The } N \times N_\beta \text{ design matrix.} \\
 	     \begin{bmatrix}\beta_1 & \cdots & \beta_{N_\beta}\end{bmatrix}^T 
 	     \text{ of regression parameters.} \\
 \varepsilon &: \text{ The } N \times 1 \text{ column vector of observation noise.} \\
-\lambda &: \text{ The scale parameter for the noise.} \\
+\lambda &: \text{ The precision parameter for the noise.} \\
 \phi &: \text{ The correlation parameter for the noise covariance.}
 \end{align*}
 In this implementation of the framework, the first column of the design matrix $G$ is all one's, so the first
@@ -109,7 +109,7 @@ For each of the correlation cases, the correlation parameter $\phi$ is restricte
 \text{Equicorrelation: } &\phi \in [0, 1)\\
 \text{AR(1) correlation: } &\phi \in (-1, 1)
 \end{align*} 
-Note that although we have defined the domain for $\phi$ in the no correlation case to be the empty set since
+Note that we have defined the domain for $\phi$ in the no correlation case to be the empty set since
 the corresponding correlation matrix in this case has no $\phi$ dependence. The reason for using these choices
 of covariance functions is that these choices each have known analytical forms for the inverse and determinant.
 This facilitates computation of the exact solution to the Bayesian inverse problems described below, as the inverse
@@ -142,10 +142,10 @@ Bayesian inference relies on Bayes rule
 p\left(\left. \hat \theta \right| y  \right) = \frac{p\left( y \left| \hat \theta \right. \right) p_0\left(\hat \theta\right)} { p\left(y\right)},
 \end{align*}
 where $\hat \theta$ is the inferred parameter, $y$ is the data, and the $p(\cdot)$ functions refer to
-the following likelihoods:
+the following probability density functions:
 \begin{align*}
 p\left(\left. \hat \theta \right| y \right) &: \text{ Posterior of parameter value } \hat \theta \text{ given data } y \\
-p\left(\left. \hat \theta \right| y \right) &: \text{ Likelihood of data } y \text{ given parameter value } \hat \theta \\
+p\left( y \left| \hat \theta \right. \right) &: \text{ Likelihood of data } y \text{ given parameter value } \hat \theta \\
 p_0\left(\hat \theta\right) &: \text{ Prior for inferred parameter value } \hat \theta \\
 p\left(y\right) &: \text{ Marginal likelihood of the data } y \text{ given by }
  \int_{D(\hat \theta)} p\left( y \left| \hat \theta \right. \right) p_0\left(\hat \theta\right)\,d\hat\theta
@@ -222,16 +222,15 @@ The following is an outline of the steps involved in using the verification fram
 \item Choose which parameters to calibrate (i.e., which are treated as unknowns): 
 	Case~1: $\hat \beta$, 
 	Case~2: $\hat\beta, \hat \lambda$, or
-	Case~3: $\hat\beta, \hat \lambda, \hat \phi$. If using Case~3, choose the parameters $\phi_L, \phi_H$ defining
+	Case~3: $\hat\beta, \hat \lambda, \hat \phi$. If using Case~3, choose the parameters $\phi_L, \phi_H$
 	restricting the domain of $\phi$. These need to be chosen in agreement with the domain associated with the
 	correlation function. 
 \item Choose whether to use the non-informative prior or the Gaussian prior for the regression parameters $\hat \beta$.
 	If using the Gaussian prior, choose the prior mean $\mu_0$ and prior un-scaled covariance $\Sigma_0$.
-\item Using the calibration routine to be verified, calculate the posterior for the unknown parameters. It is important that this 
-	be done using the calibration data $y$ generated above, using the same prior, and also using the same design
-	matrix $G$ set above.
+\item Using the calibration routine to be verified, sample from the posterior of the unknown parameters. It is important that this 
+	be done using the calibration data $y$ generated above, using the same design matrix $G$ set above.
 \item Use the verification framework to calculate the true posterior using all the chosen parameters as input.
-\item Compare the true posterior computed by the verification framework with that computed by the routine being verified.
+\item Compare the true posterior computed by the verification framework with that sampled by the routine being verified.
 \end{enumerate}
 
 This outline leaves open the specific ways the comparison between the true posterior and the output of the calibration
@@ -254,7 +253,7 @@ which defines all the parameters of the problem. The fields of this structure ar
 {\tt param.G}:  & {\tt N} by {\tt Nbeta} design matrix. \\
 {\tt param.prior}: & Structure defining the prior. See below for more information. \\
 {\tt param.beta}: & {\tt Nbeta} by 1 vector of the true regression parameters $\beta$ \\
-{\tt param.lambda}: & Scalar value of the true scale parameter $\lambda$. \\
+{\tt param.lambda}: & Scalar value of the true precision parameter $\lambda$. \\
 {\tt param.phi}: & Scalar value of the true correlation parameter $\phi$. \\  
 {\tt param.corrfunc}: & String defining the correlation function type: {\tt "none", "equal", "ar"}. \\
 {\tt param.y}: & {\tt N} by 1 vector of observations. \\
@@ -266,7 +265,7 @@ which defines all the parameters of the problem. The fields of this structure ar
 
 \vspace{.1in}
 \textbf{Prior structure}. Let the prior structure be named {\tt prior}. It always has the field {\tt prior.type} which is a string variable with
-two possible values: {\tt "noninformative"} or {\tt gaussian}. If the {\tt prior.type} field is set to {\tt "noninformative"}, no other
+two possible values: {\tt "noninformative"} or {\tt "gaussian"}. If the {\tt prior.type} field is set to {\tt "noninformative"}, no other
 fields need to be defined. If it is set to {\tt "gaussian"}, the field {\tt prior.sigma0} must be the {\tt Nbeta} by {\tt Nbeta}
 unscaled covariance and {\tt prior.mu0} is the {\tt Nbeta} by 1 mean vector of the prior. 
 
@@ -277,7 +276,7 @@ Case~2: $\beta, \lambda$, or Case~3: $\beta,\lambda,\phi$.
 
 \vspace{.1in}
 \textbf{Calibration data}. The function {\tt eval\_noise} takes the same {\tt param} structure above as input, except {\tt param.y}
-need not be defined. It returns a {\tt N} by 1 vector of unscaled observation error. This vector can be divided by $\sqrt{\lambda}$
+need not be defined. It returns a {\tt N} by 1 vector of unscaled observation errors. This vector can be divided by $\sqrt{\lambda}$
 and added to the error-free model output to provide calibration data.
 
 \vspace{.1in}
@@ -285,7 +284,7 @@ and added to the error-free model output to provide calibration data.
 for practical purposes to bound the range of the parameters. In the ideal problem, each component of $\beta$ can be
 any component in $\mathbb{R}$ and $\lambda$ ranges from $(0, \infty)$. The ranges for these parameters are used only by the 
 Metropolis-Hastings algorithm provided as an example routine for verification and should not affect the true posterior calculation.
-The range for $\phi$, however, is different, as this defines range of the uniform prior. It is necessary to choose this prior so that
+The range for $\phi$, however, is different, as this defines the range of the uniform prior. It is necessary to choose this prior so that
 the range is smaller than the range of the actual correlation parameter ($[0,1)$ for equicorrelation and $(-1, 1)$ for AR(1) 
 correlation) as the posterior for $\phi$ involves integrals which do not converge if every point in the domain of $\phi$ is 
 weighted by a uniform prior. 
@@ -346,7 +345,7 @@ parameters, followed by the $\lambda$ observation, followed by the $\phi$ observ
 will lead to more computationally involved tests. Defaults to 0.05. 
 
 {\tt numtests}: This is the number of hypothesis tests to run. Each test draws a separate set of realizations from the
-posterior to use in the hypothesis test which checks if {\tt sample} is drawn from the same distribution. The number
+posterior to use in the hypothesis test which checks if {\tt sample} is drawn from the same distribution. If the number
 of failed tests significantly exceeds {\tt numtests * alpha}, then it is reasonable to expect that {\tt sample}
 comes from a different distribution and the code that generated it failed to produce the correct output at the given
 signficance level. Defaults to 100.
@@ -362,6 +361,31 @@ true posterior for each test.
 
 {\tt results.fail\_ratio}: This is the ratio of tests run which were rejected. If this value exceeds {\tt alpha} significantly,
 the correctness of {\tt sample} is questionable. 
+
+{\tt results.fail\_pvalue}: This is the probability of observing at least as many rejections as occurred given the number
+of tests and the confidence level {\tt alpha}. 
+
+%\vspace{.1in}
+%***************
+%
+%\noindent
+%It would be useful to add an additional quantity of interest to return to the reader to evaluate the number of failed
+%tests observed. In particular, let $F$ denote the random variable describing the number of tests that fail. We note
+%the results of the {\tt numtests} tests are mutually independently distributed as Bernoulli random variables, each taking
+%the value 1 if failure. Also, under the null hypothesis, the probability that any test resuts in a 1 is {\tt alpha}.
+%Therefore, $F$ is distributed as a Binomial$( \mbox{{\tt numtests}}, \mbox{{\tt alpha}})$ random variable. With this
+%background, if $\hat{F}$ denotes the actual observed number of failures, we should calculate and return Prob$(F
+%\ge \hat{F})$. This is the probability of observing at least as many failures as we did under the null hypothesis of each
+%test. As such, it is a ``p-value" and if this number is small (say, less than 5\% or 1\%), it indicates that such observed
+%number of failures has small probability under the null hypothesis of each test, suggesting that {\tt sample} is not
+%correct. Note that
+%\[
+%\mbox{Prob}(F \ge \hat{F}) = 1 - \mbox{Prob}(F < \hat{F}) = 1 - \sum_{j=0}^{\hat{F}-1} \begin{pmatrix} \mbox{{\tt numtests}} \\ j \end{pmatrix} \mbox{{\tt %alpha}}^j (1 - \mbox{{\tt alpha}})^{\mbox{{\tt numtests}}-j} \,.
+%\]
+%You could either do this calculation directly, or better yet see if matlab has a binomial PMF or CDF calculator you can
+%use (will probably have an efficient numerical implementation).
+%
+%***************
 
 \vspace{.1in}
 \textbf{Sampling from the true posterior.} The function {\tt draw\_posterior\_sample(param, post, N)} can be used

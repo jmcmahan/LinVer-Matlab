@@ -5,6 +5,9 @@ function result = do_energy_test(versample, param, post, alpha, numtests, N1)
 %
 % result.fail_ratio = ratio of tests which failed
 % result.exact_sample = sample drawn from the exact posterior
+% result.fail_pvalue = probability of observing at least as many failures
+%                      as were observed given the confidence level and number 
+%                      of tests.
 %
 % result = do_energy_test(versample, param, post, alpha) : Same as above but set
 % confidence to alpha.
@@ -14,6 +17,7 @@ function result = do_energy_test(versample, param, post, alpha, numtests, N1)
 %
 % result = do_energy_test(versample, param, post, alpha, numtests, N1) : Same
 % as above but use N1 samples from the exact posterior.
+
 
 if nargin < 4
     alpha = 0.05;
@@ -57,5 +61,6 @@ for j = 1:numtests
     disp(sprintf('Test %d: %d', j, r));
 end
 result.fail_ratio = numfail / numtests;
+result.fail_pvalue = 1 - binocdf(numfail, numtests, alpha);
 
 end
