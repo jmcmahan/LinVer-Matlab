@@ -15,7 +15,7 @@ end
 corrfunc = param.corrfunc;
 N = param.N;
 x = randn(N,1);
-if N < 5e2;
+if N <= 5e2;
     R = eval_corrfunc(param);
     if scaled
         L = chol(R)' / sqrt(param.lambda);

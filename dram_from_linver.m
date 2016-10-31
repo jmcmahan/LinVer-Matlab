@@ -1,4 +1,7 @@
-function sol = dram_from_linver(param)
+function sol = dram_from_linver(param, adderror)
+    if nargin < 2
+        adderror = false;
+    end
     G = param.G;
     Nbeta = param.Nbeta;
     
@@ -75,7 +78,7 @@ function sol = dram_from_linver(param)
         
     else
         % True value of lambda unknown, so use the sampled value
-        priorfun = @(th, mu, sig) -param.Nbeta*log(th(Nbeta+1)) + th(Nbeta+1) * ...
+        priorfun = @(th, mu, sig) -(param.Nbeta - 2)*log(th(Nbeta+1)) + th(Nbeta+1) * ...
                      sum( ((th(1:Nbeta)-mu(1:Nbeta)) ./sig(1:Nbeta)).^2 );
                  
     end
@@ -90,14 +93,17 @@ function sol = dram_from_linver(param)
     model.priorfun = priorfun;
     model.N = param.N;
     if strcmp(param.unknowns, 'beta')
-        model.ssfun = @(theta, data) ssfun1(theta, data, param, Cinv);
+        model.ssfun = @(theta, data) ssfun1(theta, data, param, Cinv, adderror);
     elseif strcmp(param.unknowns, 'beta_lambda')
-        model.ssfun = @(theta, data) ssfun2(theta, data, param, Cinv);
+        model.ssfun = @(theta, data) ssfun2(theta, data, param, Cinv, adderror);
     elseif strcmp(param.unknowns, 'beta_lambda_phi')
-        model.ssfun = @(theta, data) ssfun3(theta, data, param);
+        model.ssfun = @(theta, data) ssfun3(theta, data, param, adderror);
     end
     options.qcov = qcov;
     options.updatesigma = 0;
+    if isfield(param, 'nsimu')
+        options.nsimu = param.nsimu;
+    end
     
     [res, chain] = mcmcrun(model, data, drampar, options);
     sol.res = res;
@@ -107,7 +113,7 @@ end
 
 
 
-function ss = ssfun1(theta, data, param, Cinv)
+function ss = ssfun1(theta, data, param, Cinv, adderror)
     % Log-likelihood function when beta is unknown
     G = param.G;
     if isrow(theta); 
@@ -121,9 +127,13 @@ function ss = ssfun1(theta, data, param, Cinv)
     yhat = G*theta;
     resid = y - yhat;
     ss = resid'*Cinv*resid * param.lambda; 
+
+    if adderror
+        ss = ss * 2;
+    end
 end
 
-function ss = ssfun2(theta, data, param, Cinv)
+function ss = ssfun2(theta, data, param, Cinv, adderror)
     % Log-likelihood function when beta, lambda are unknown
     G = param.G;
     if isrow(theta); 
@@ -139,9 +149,12 @@ function ss = ssfun2(theta, data, param, Cinv)
     yhat = G*beta;
     resid = y - yhat;
     ss = resid'*Cinv*resid * lambda - param.N * log(lambda);
+    if adderror
+        ss = ss * 2;
+    end
 end
 
-function ss = ssfun3(theta, data, param)
+function ss = ssfun3(theta, data, param, adderror)
     % Log-likelihood function when beta,lambda,phi are unknown    
     G = param.G;
     if isrow(theta); 
@@ -162,5 +175,8 @@ function ss = ssfun3(theta, data, param)
     resid = y - yhat;
     
     ss = resid'*Cinv*resid * lambda + log(detC) - param.N * log(lambda);
+    if adderror
+        ss = ss * 2;
+    end
 end
 
