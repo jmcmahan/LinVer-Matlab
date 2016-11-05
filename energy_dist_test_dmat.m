@@ -24,10 +24,10 @@ function [reject, pval, estat, B] = energy_dist_test_dmat(s1, s2, alpha, B)
 
 
 if nargin < 4
-    B = 5*ceil(1/alpha)-1;
+    B = 2*ceil(1/alpha)-1;
 end
 
-if 1/(B+1) >= alpha
+if 1/(B+1) > alpha
     disp('Warning: Choice of B may not be appropriate for desired signifcance, alpha');
 end
 
@@ -63,7 +63,7 @@ for j = 2:B+1
     estat(j) = EnSt2DistMat(x, y, dmat);
 end
 
-pval = sum(eobs < estat) / (B+1);
+pval = sum(eobs < estat(2:end)) / B;
 
 if alpha > pval
     reject = true;
