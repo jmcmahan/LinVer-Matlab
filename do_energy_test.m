@@ -59,6 +59,7 @@ for j = 1:numtests
         numfail = numfail + 1;
     end
     disp(sprintf('Test %d: %d', j, r));
+    disp(sprintf('Total Failures: %d   Current Final: %0.03f', numfail, numfail/numtests));
 end
 result.fail_ratio = numfail / numtests;
 result.fail_pvalue = 1 - binocdf(numfail, numtests, alpha);

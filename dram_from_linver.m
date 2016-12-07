@@ -59,7 +59,7 @@ function sol = dram_from_linver(param, adderror)
             drampar{j} = {'', param.beta(j), param.betarange(j, 1), ...
                         param.betarange(j, 2), ...
                         param.prior.mu0(j), ...
-                        sqrt(param.prior.sigma0(j,j))};            
+                        sqrt(param.prior.sigma0(j,j)) };            
         end
     end
     if strcmp(param.unknowns, 'beta_lambda') ...
@@ -78,7 +78,7 @@ function sol = dram_from_linver(param, adderror)
         
     else
         % True value of lambda unknown, so use the sampled value
-        priorfun = @(th, mu, sig) -(param.Nbeta - 2)*log(th(Nbeta+1)) + th(Nbeta+1) * ...
+        priorfun = @(th, mu, sig) -(param.Nbeta-2)*log(th(Nbeta+1)) + th(Nbeta+1) * ...
                      sum( ((th(1:Nbeta)-mu(1:Nbeta)) ./sig(1:Nbeta)).^2 );
                  
     end
@@ -100,6 +100,13 @@ function sol = dram_from_linver(param, adderror)
         model.ssfun = @(theta, data) ssfun3(theta, data, param, adderror);
     end
     options.qcov = qcov;
+    % Defaults
+    %options.adaptint = 100;
+    %options.drscale = [5 4 3];
+    
+    options.adaptint = 200;
+    options.drscale = [6 5 4];
+    options.burnintime = 20000; 
     options.updatesigma = 0;
     if isfield(param, 'nsimu')
         options.nsimu = param.nsimu;

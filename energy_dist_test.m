@@ -41,6 +41,7 @@ pool = [s1, s2];
 
 estat = zeros(B+1, 1);
 eobs = EnSt2(s1, s2);
+% Why did I do this?
 estat(1) = eobs;
 
 
@@ -53,6 +54,7 @@ for j = 2:B+1
 
 end
 
+%pval = sum(eobs < estat) / (B+1);
 pval = sum(eobs < estat(2:end)) / B;
 
 

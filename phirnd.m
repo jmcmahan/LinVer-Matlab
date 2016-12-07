@@ -34,6 +34,7 @@ phirange = param.phirange;
 
 
 phi = linspace(phirange(1), phirange(end), cdfsize)';
+
 pphi = post.pphi(phi);
 cdfphi = cumtrapz(phi, pphi);
 

@@ -51,9 +51,9 @@
 
 
     % Confidence level
-    alpha = 0.10;
+    alpha = 0.01;
     % Number of tests to run
-    numtests = 50;
+    numtests = 500;
 
     % Do the energy tests for each of these samples
     disp('Test Key:')
@@ -75,4 +75,4 @@
     disp('in the good sample to be somewhat higher than 0.1. Ratio should')
     disp('be much smaller than that of the bad sample, though.')
 
-    save('dram_example2.mat', 'result_good', 'result_bad', 'good_sample', 'bad_sample', 'sol', 'solbad', 'G', 'y', 'e', 'post', '-mat')
+    %save('dram_example2.mat', 'result_good', 'result_bad', 'good_sample', 'bad_sample', 'sol', 'solbad', 'G', 'y', 'e', 'post', '-mat')

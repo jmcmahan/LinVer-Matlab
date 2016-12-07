@@ -60,9 +60,9 @@
 
 
     % Confidence level
-    alpha = 0.10;
+    alpha = 0.01;
     % Number of tests to run
-    numtests = 50;
+    numtests = 500;
 
     % Do the energy tests for each of these samples
     disp('Test Key:')

@@ -114,7 +114,7 @@ function [a1, b1, dof, loc, scl, sigma2, sigma3, GRiG, pbeta, plambda] ...
         a1 = N / 2;
         resy = y - G*betahat;
         resbeta = betahat - mu0;
-        b1 = (resy'*Ri*resy + resbeta'*(sigma3 \ resbeta));
+        b1 = (resy'*Ri*resy + resbeta'*(sigma3 \ resbeta)) / 2;
     end
 
     % t-distribution parameters for beta
@@ -233,7 +233,6 @@ end
 
 function p = phi_post_interp(phi, xphi, pphi)
 
-    
     p = interp1(xphi, pphi, phi, 'spline');
     
     % We'll just set anything outside of the smallest and largest values of xphi
